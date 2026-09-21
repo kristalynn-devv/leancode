@@ -1,7 +1,7 @@
 # leancode
 
 A coding-workflow skill for agents. It turns "implement this" from a single leap into
-a walk with nine steps, and — the part most workflows leave out — it **audits whether
+a walk with nine steps, and (the part most workflows leave out) it **audits whether
 the walk actually happened** before it reports anything back.
 
 Written for [Claude Code](https://claude.com/claude-code) skills, but it is one
@@ -19,7 +19,7 @@ can read it.
 | §4 Self-review | A delegated review round, findings checked against the code, rejected ones named |
 | §5 Parallelize / serialize | Investigation fans out; edits stay in one line |
 | §6 Continuity | `HANDOFF.md` once the session is close to running out, so the next one doesn't start cold |
-| §7 Audit | Re-read the **session**, not the diff — a step that never happened leaves nothing in a diff to see |
+| §7 Audit | Re-read the **session**, not the diff. A step that never happened leaves nothing in a diff to see |
 | §8 Report | What changed, why, how it was verified, and what was deliberately skipped |
 | §9 Doc hygiene | Docs are edited only on the user's go-ahead |
 
@@ -32,19 +32,19 @@ this a workflow skill is only ever obeyed on the tasks that did not need it.
 **The skill never edits its own rules mid-task.** Observations go into an
 append-only `FRICTION.md` beside `SKILL.md`; promoting one into a rule needs a human,
 and needs the change to name what it replaces. The session that just got burned is the
-worst judge of what the rule should be — it over-corrects from a sample of one, and
+worst judge of what the rule should be. It over-corrects from a sample of one, and
 every rule added is paid for on every future run, invisibly.
 
-`FRICTION.md` is not published here — mine logs real repo names. Start your own from
+`FRICTION.md` is not published here, because mine logs real repo names. Start your own from
 [`FRICTION.template.md`](./FRICTION.template.md).
 
 ## Setup
 
-Needs an agent that loads skills from a folder — [Claude Code](https://claude.com/claude-code)
+Needs an agent that loads skills from a folder. [Claude Code](https://claude.com/claude-code)
 is what it was written against and the only one it has been run in.
 
 The skill is a folder with a `SKILL.md` in it. **The folder name must match the `name:`
-in the frontmatter** (`leancode`) — that is how the agent addresses it.
+in the frontmatter** (`leancode`), because that is how the agent addresses it.
 
 Paths below are macOS and Linux. On Windows the personal skills folder is
 `%USERPROFILE%\.claude\skills\`, and the symlink route is
@@ -52,7 +52,7 @@ Paths below are macOS and Linux. On Windows the personal skills folder is
 elevated prompt.
 
 Already have a `leancode` folder there from an earlier install? The clone will refuse
-rather than overwrite it — update it instead, with the `git pull` under
+rather than overwrite it. Update it instead, with the `git pull` under
 [Update / remove](#update--remove).
 
 ### Every project (personal skill)
@@ -82,7 +82,7 @@ ln -s ~/src/leancode ~/.claude/skills/leancode
 ### Verify it loaded
 
 Start Claude Code and type `/leancode`. If the skill is listed, it is installed.
-Naming it is optional though — the description is written so it engages on
+Naming it is optional though, since the description is written so it engages on
 implementation intent by itself ("fix this bug", "add this endpoint").
 
 ```
@@ -96,7 +96,7 @@ cp ~/.claude/skills/leancode/FRICTION.template.md ~/.claude/skills/leancode/FRIC
 ```
 
 Without it §7's last line has nowhere to write, and the skill stops learning from its
-own runs. One line per run — including the runs that went fine, because a log of only
+own runs. One line per run, including the runs that went fine, because a log of only
 the failures is a numerator with no denominator.
 
 ### Tune it
@@ -124,10 +124,10 @@ rm -rf ~/.claude/skills/leancode         # remove
 
 Planning is somebody else's job. This skill is reached by **state**, not by name: the
 decisions are settled and the next move is editing code. Pair it with whatever you plan
-in — a planning skill, an issue tracker, your own head. When it hits something it cannot
+in: a planning skill, an issue tracker, your own head. When it hits something it cannot
 decide, it returns the question to whoever called it rather than routing on to a skill
 of its own choosing.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).
