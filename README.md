@@ -40,8 +40,20 @@ every rule added is paid for on every future run, invisibly.
 
 ## Setup
 
+Needs an agent that loads skills from a folder — [Claude Code](https://claude.com/claude-code)
+is what it was written against and the only one it has been run in.
+
 The skill is a folder with a `SKILL.md` in it. **The folder name must match the `name:`
 in the frontmatter** (`leancode`) — that is how the agent addresses it.
+
+Paths below are macOS and Linux. On Windows the personal skills folder is
+`%USERPROFILE%\.claude\skills\`, and the symlink route is
+`mklink /D "%USERPROFILE%\.claude\skills\leancode" C:\src\leancode` from an
+elevated prompt.
+
+Already have a `leancode` folder there from an earlier install? The clone will refuse
+rather than overwrite it — update it instead, with the `git pull` under
+[Update / remove](#update--remove).
 
 ### Every project (personal skill)
 
