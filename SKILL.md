@@ -1,6 +1,7 @@
 ---
 name: leancode
 description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a closing audit of the walk itself, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
+version: 2.1.0
 ---
 
 # Lean Code Workflow
@@ -21,6 +22,10 @@ Every threshold this skill uses lives here and is referenced by name from the se
 | `review.effort` | maximum (`ultrathink`) | §4 — reasoning depth the review runs at |
 
 A project can override any of these in its own `CLAUDE.md`; the project's value wins — except that `review.max_rounds` always wins over `review.rounds`, a ceiling that config can exceed is not a ceiling.
+
+## Versioning
+
+`version` in the YAML frontmatter is the source of truth. Every edit to this file must, in the same change: bump `version` (semver — major = breaking walk change, minor = new rule or section, patch = wording) and add one Changelog line dated today. Say the new version in the §8 report. Append-only lines in `FRICTION.md` do not bump.
 
 ## 0. Entry and return
 
@@ -226,3 +231,9 @@ If this change affects documented behavior (a route, an API contract, a decision
 - Smoke-test an environment you have not verified is dev.
 - Guess past an open decision instead of returning it to the caller (§0).
 - Claim high confidence without evidence to back it.
+- Edit this file without bumping `version` and adding a Changelog line.
+
+## Changelog
+
+- 2.1.0 (2026-09-22) — require a version bump + changelog line on every SKILL.md edit
+- 2.0.0 (2026-09-21) — first numbered snapshot of the evolved walk (tunables, §0–§9, FRICTION.md)
