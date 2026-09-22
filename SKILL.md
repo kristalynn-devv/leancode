@@ -1,7 +1,7 @@
 ---
 name: leancode
-description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a closing audit of the walk itself, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
-version: 2.1.0
+description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a closing audit of the walk itself, a risk-assessed split of work across parallel agents when slices are provably independent, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
+version: 2.2.0
 ---
 
 # Lean Code Workflow
@@ -20,6 +20,8 @@ Every threshold this skill uses lives here and is referenced by name from the se
 | `review.rounds` | 1 | §4 — delegated self-review passes |
 | `review.max_rounds` | 2 | §4 — hard ceiling; past this, stop and hand back to the caller |
 | `review.effort` | maximum (`ultrathink`) | §4 — reasoning depth the review runs at |
+| `parallel.max_agents` | 3 | §5 — agents running at once, any shape |
+| `parallel.min_slice` | ~1 sitting's worth | §5 — smallest slice worth handing to its own builder |
 
 A project can override any of these in its own `CLAUDE.md`; the project's value wins — except that `review.max_rounds` always wins over `review.rounds`, a ceiling that config can exceed is not a ceiling.
 
@@ -91,7 +93,7 @@ A project can override any of these in its own `CLAUDE.md`; the project's value 
 
 Review deliberately, not repeatedly. `review.rounds` pass(es) at `review.effort`, thinking at full depth, beats several cheap re-reads by the model that just wrote the code — that model is the worst reviewer of its own work.
 
-- **Delegate it.** What this pass buys is depth, not a different nameplate: spend it on effort, not on model shopping. Claude Code: `Agent` tool with `subagent_type: "general-purpose"` and **no `model` override** — the review runs on the session's own model, and never on Fable. Open the prompt with `ultrathink` so it runs at `review.effort`. On any other harness, select the deepest thinking mode available and leave the model alone. **The reviewer reads and reports; it never edits.** Fixing is the main session's job — a reviewer that patches its own findings puts changes into the diff that nobody reviewed, and collides with §5.
+- **Delegate it** — §5 owns the mechanics of spawning, briefing, and the harness-forbids-it fallback. What this pass buys is depth, not a different nameplate: spend it on effort, not on model shopping. Claude Code: `Agent` tool with `subagent_type: "general-purpose"` and **no `model` override** — the review runs on the session's own model, and never on Fable. Open the prompt with `ultrathink` so it runs at `review.effort`. On any other harness, select the deepest thinking mode available and leave the model alone. **The reviewer reads and reports; it never edits.** Fixing is the main session's job — a reviewer that patches its own findings puts changes into the diff that nobody reviewed, and collides with §5.
 - **Brief it properly.** The reviewer doesn't share this session's context: give it the one-sentence goal from §1, the full diff (`git diff`, plus `--staged` if anything is staged), and the surrounding files it should read. Ask for concrete findings — file, line, what breaks — not a grade.
 - **Every pass covers all three dimensions:**
   - *Correctness* — edge cases, empty/null inputs, error paths, off-by-one, async ordering, resource cleanup, security (auth checks, input trust), performance (extra queries/renders, unbounded work the change introduced).
@@ -103,11 +105,39 @@ Review deliberately, not repeatedly. `review.rounds` pass(es) at `review.effort`
 - **`review.max_rounds` is a hard ceiling, not a budget to spend.** Hitting it is a signal, not a step: stop delegating, say plainly that the change has outgrown one review cycle, and hand the caller (§0) the findings that are still open plus what you'd do next. Re-reviewing past the ceiling hides a scope problem instead of surfacing it.
 - A clean pass means the process is clean, not that the goal is met. Before moving on, confirm the one-sentence goal from §1 is actually satisfied, not just that no more issues turned up.
 
-## 5. Parallelize investigation, serialize edits
+## 5. Split across agents — when it actually pays
 
-- Independent read-only work (searching several areas, comparing approaches, auditing multiple files) → run subagents in parallel.
-- Never run parallel agents that edit the same files.
-- Delegating heavy reading to subagents also preserves the main session's context on long tasks.
+One session is the default. A second agent costs a cold start: it shares none of this session's context, so everything it needs must be written out, and everything it learns comes back as a report rather than as context you already have. Fan out when the work is genuinely separable and big enough to pay that cost — not because the task has several parts.
+
+**Before any split, run the risk pass — and write it down.** Splitting is itself a decision with a blast radius; deciding it in your head is how two agents end up in the same file. Four questions, answered out loud in the plan (§1) before the first agent is spawned:
+
+1. **What does each slice touch?** List the files, and the shared surfaces behind them — the same type or schema, the same route table, the same config key, the same migration chain, the same lockfile, the same generated artifact. Two slices that never share a *file* can still collide through any of these.
+2. **Where would they interfere?** Working tree and git index, build and test caches, ports and dev servers, a database or dev cluster, rate-limited external calls. Name the collision, then name what keeps it from happening — a worktree, a separate port, a serialized step.
+3. **What breaks if one slice fails or goes wrong halfway?** If the answer is "the other slice is now built on something that doesn't exist", they were never independent. If it's "we throw that worktree away", the split is safe.
+4. **Is it cheaper serialized?** The honest answer is often yes. Say so and serialize — a fan-out that saves ten minutes and costs an hour of integration is a loss.
+
+Any question you can't answer concretely is a **no**: serialize, and say why in §8. An unanalyzed risk is not a small risk — it's an unknown one, and §0's rule applies: if the split itself is the open decision, it goes back to the caller.
+
+**Three shapes, in order of how safe they are:**
+
+- **Read fan-out — always available.** Independent read-only work: searching several areas, comparing approaches, auditing multiple files, reading another repo. Run up to `parallel.max_agents` at once. This also preserves the main session's context on long tasks, which is half the reason to reach for it.
+- **Review fan-out — §4's round.** Same mechanics as here; §4 owns the rules for it. More than one reviewer only when the dimensions are genuinely separate (correctness vs. cross-stack contract, say), never the same brief twice for a second opinion.
+- **Build fan-out — the narrow one.** Two agents editing at once is allowed only when every condition below holds. Any one missing → serialize, and say in §8 that you did.
+  - **Disjoint file sets, decided up front.** Each slice names the files it owns; one file has exactly one owner. Overlap isn't negotiated mid-flight — it's a sign the split is wrong.
+  - **Each slice is at least `parallel.min_slice` of work.** Below that, briefing costs more than doing it.
+  - **No slice depends on another's output.** A slice that needs the shape of what another agent is still writing is a sequence, not a fan-out.
+  - **Shared state is isolated — every item the risk pass named.** Concurrent edits in one working tree collide over the index, the build cache, and the dev server. Give each builder its own git worktree where the harness offers one (Claude Code: `isolation: "worktree"` on the `Agent` call, or an explicit worktree tool). Never let two of them run the same dev server, migrate the same database, commit or push on the same branch, or edit the same lockfile. Anything that genuinely cannot be isolated — one shared dev cluster, one external account with a rate limit — is not a thing to coordinate around: it stays with the main session, done once, before or after the fan-out.
+  - **Nobody commits, pushes, or deploys from inside a slice.** Builders leave their work in their own tree and report; landing it is the main session's job, in one place, in an order it chose.
+
+**Brief every agent the same way, whatever the shape.** It knows nothing you haven't written down: the one-sentence goal from §1, its slice and the files it owns, the repo constraints from §1 that bind it, what "done" looks like, and what to report back. Tell it explicitly what is *not* its slice — the common failure is an agent helpfully fixing something two slices over.
+
+**A subagent that hits an open decision returns it — it does not decide.** §0 applies inside the fan-out exactly as it applies at the top: the sub-agent hands the question back to you, you either answer it from context you hold or return it further to your own caller. An agent that guesses past a decision produces a diff nobody agreed to, and you find out at integration.
+
+**You own the merge, and nothing an agent reports is evidence until you've seen it here.** Per-slice green proves the slices, not the change. After the last one lands: read the combined diff yourself, re-run §3 against the integrated tree, and run §4 on the whole diff — not once per slice. Integration is where disjoint-looking slices turn out to share a type, a route, or a config key.
+
+**A harness may forbid spawning agents at all** — a session-level instruction outranks this file. Then every shape here collapses to sequential in-session work: do it, say so in §8, and offer the delegated round rather than claiming it ran.
+
+**`HANDOFF.md` stays single (§6) when the work fans out.** One note, with a line per slice: who owns it, which files, which worktree, and where it stopped. Notes per agent drift, and the one you resume from is never the current one.
 
 ## 6. Long-run continuity
 
@@ -178,6 +208,8 @@ What to walk:
 - §3 — the full diff was read, and every result reported is a concrete one (output, exit code, screenshot).
 - §3 — UI or user-visible change → seen working in the real app; auth, input handling, rendering user-controlled data, or secrets → `security-review` ran.
 - §4 — the delegated round ran at `review.effort` with no model override, findings were checked against the code, and rejected ones named. The harness forbids spawning agents → say so in §8 and offer the round; a self-read does not count as one.
+- §5 — work was split only after the risk pass was written down, and no two agents touched the same file or shared surface.
+- §5 — per-slice results were re-verified on the integrated tree; nothing was reported green on a slice's word alone.
 - §6 — `HANDOFF.md` matches where the work actually is, or is gone because the work finished here.
 - Never — no claim in the report rests on a search you cut short or a document you didn't run.
 - **Friction** — this skill's own log lives beside this file, `FRICTION.md` next to `SKILL.md`. At the *end* of every task, append one dated line: what the task was and how it ended. Add a second line only when a rule here failed you — didn't fire when it should have, fired wrongly, or there was simply no rule. Logging only the failures gives a numerator with no denominator, and no rate can be read from it. Never edit the rules themselves from inside a task: the session that just got burned is the worst judge of what the rule should be. This one file is exempt from §9's ask-first rule because it only records observations and changes no behaviour; `FRICTION.md` carries its own bar for what may later be promoted into a rule.
@@ -229,11 +261,13 @@ If this change affects documented behavior (a route, an API contract, a decision
 - Edit a doc without the user's go-ahead — except the automatic split in §9 when a doc has bloated.
 - Run something irreversible without confirming it first — a permissive tool mode is not consent.
 - Smoke-test an environment you have not verified is dev.
+- Split work across agents without the §5 risk pass, or let two of them edit the same file, branch, or shared surface.
 - Guess past an open decision instead of returning it to the caller (§0).
 - Claim high confidence without evidence to back it.
 - Edit this file without bumping `version` and adding a Changelog line.
 
 ## Changelog
 
+- 2.2.0 (2026-09-22) — §5 rewritten: mandatory pre-split risk pass, three fan-out shapes, non-interference and isolation rules, main-session-owns-merge
 - 2.1.0 (2026-09-22) — require a version bump + changelog line on every SKILL.md edit
 - 2.0.0 (2026-09-21) — first numbered snapshot of the evolved walk (tunables, §0–§9, FRICTION.md)
