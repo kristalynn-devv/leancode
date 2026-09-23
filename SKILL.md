@@ -1,7 +1,7 @@
 ---
 name: leancode
-description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a closing audit of the walk itself, a risk-assessed split across subagents for speed when slices are independent and do not repeat another in-flight task, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
-version: 2.3.0
+description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a structure check (a new boundary is named before the edit and matched on the diff; a refactor keeps the structure already there), one tighten pass on the finished diff (remove, collapse, bound a cost the change introduced — no unmeasured speed rewrite), a closing audit of the walk itself, a risk-assessed split across subagents for speed when slices are independent and do not repeat another in-flight task, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
+version: 2.5.0
 ---
 
 # Lean Code Workflow
@@ -20,6 +20,7 @@ Every threshold this skill uses lives here and is referenced by name from the se
 | `review.rounds` | 1 | §4 — delegated self-review passes |
 | `review.max_rounds` | 2 | §4 — hard ceiling; past this, stop and hand back to the caller |
 | `review.effort` | maximum (`ultrathink`) | §4 — reasoning depth the review runs at |
+| `optimize.passes` | 1 | Optimize — one pass on the finished diff; leftovers are named, not re-hunted |
 | `parallel.max_agents` | 3 | §5 — agents running at once, any shape |
 | `parallel.min_slice` | ~1 sitting's worth | §5 — smallest slice worth handing to its own builder |
 
@@ -53,16 +54,25 @@ A project can override any of these in its own `CLAUDE.md`; the project's value 
 - If the project has a docs router or index (e.g. a root `CLAUDE.md` that maps areas to files), follow it and read only the doc(s) matching this change's scope — never the whole doc tree. If no router exists, grep docs for the specific area instead of opening every file. A doc irrelevant to the current change is not worth its tokens.
 - **Constraints are not scoped — read them every time.** A repo's standing prohibitions ("additive only", "don't refactor", "don't touch business logic", a frozen contract) usually live in the root `CLAUDE.md` or its equivalent, and usually do *not* match the scope of your change — so the scope-limited read above walks straight past them. Find them first, and restate the ones that bind this change in the plan. A rule you never read is a rule you will break. When an instruction and a repo constraint collide, say so before building and let the caller resolve it — don't quietly pick a side.
 - Write the sequential steps as a task list before editing anything.
-- Introducing a new module, seam, or restructuring existing code (not just editing inside a file that already exists) → settle where the boundary and interface go before writing the task list. If that's a lookup (what does this codebase already do here?), read for it, or use whatever design-guidance skill the environment offers. If it's still an open decision, it belongs to the caller (§0), not to you.
+- A change that adds a file, moves code, or could be done by reshaping where things live → Structure, before the task list.
 - Something doesn't resolve cleanly from the code or project docs — an unfamiliar library's API, a framework convention, a spec detail, a version-specific behavior — look it up (web search, official docs, or a docs tool like Context7) before guessing from memory or training data, which can be stale or simply wrong. Cite what you found when it changes the plan.
 - Ask only questions that actually block the work; otherwise pick the obvious default and state the assumption. A genuinely blocking question goes back to the caller (§0), never into the build as a guess. A reference lookup that resolves it is better than either guessing or asking.
-- **Scale the ceremony to the change, and say which level you picked.** One file, no behavior change (typo, copy, comment) → read the diff yourself; skip §4, §6, §7, charting. A small fix that one test covers end to end → §2, §3, §8, with §7 cut to the lines that apply and §4's delegated round optional. Anything else → the whole walk. Reading the diff before calling it done is never optional at any level.
+- **Scale the ceremony to the change, and say which level you picked.** One file, no behavior change (typo, copy, comment) → read the diff yourself; skip §4, Structure, Optimize, §6, §7, charting. A small fix that one test covers end to end → §2, §3, Structure, Optimize, §8, with §7 cut to the lines that apply and §4's delegated round optional. Anything else → the whole walk. Reading the diff before calling it done is never optional at any level.
+
+## Structure — name the case before the edit
+
+Two cases. Name one out loud before the task list. If both seem true, it is existing. New is the case you have to justify.
+
+- **Existing** — a fix, a feature, or a refactor the current layout can hold. Name the neighbor: the file or folder this change sits beside, and the pattern it copies. File layout, naming, and where this kind of logic lives stay as they are. Moved code lands next to the code it already belonged with. The diff adds no new folder, no new layer, and no new pattern. A refactor that also invents a structure is two changes — return it (§0).
+- **New** — nothing that already exists can hold the change without a second copy of the same idea. A repo with no pattern yet is not this case: that decision goes back to the caller (§1). Name the boundary and the interface in one sentence each before the task list. If that sentence is still an open decision, return it (§0). A lookup of what this codebase already does, or a design-guidance skill, can settle it; guessing cannot. On the diff, every new file belongs to that boundary, and callers cross only through the named interface. That seam is load-bearing — Optimize does not collapse it for having one call site. `abstraction.call_sites` still gates a helper extracted inside an existing structure. It does not gate a boundary this case already named.
+
+Check the diff against the case you named once, after §4 when that round ran, before Optimize. A diff that drifted is corrected once to match the case, then the check §3 used is re-run. That correction does not re-enter §4, and it does not refresh this check. If it still does not match, return it (§0). On a match, go to Optimize. The typo tier skips this. A small fix names existing and confirms no new folder, layer, or pattern appeared.
 
 ## 2. Build lean
 
 - Smallest change that fully achieves the goal. No scaffolding for futures nobody asked for.
 - **The §1 task list is the scope boundary.** A file it doesn't name is out of bounds: spot a real problem there and you write it down and report it in §8 — you don't fix it in this change, however small the fix looks. The one exception is a file that genuinely blocks the work; then say out loud that you're widening the scope, and why, *before* touching it.
-- No new abstraction, layer, or config option until there are `abstraction.call_sites` real call sites.
+- No new abstraction, layer, or config option until there are `abstraction.call_sites` real call sites. A boundary Structure already named as new is the exception — that section owns it. A helper inside an existing structure is not exempt.
 - Build the flexible version when flexibility is free — take the part that varies as a parameter, prop, or config value instead of freezing it into the body. "Flexible" means *not pinned down*, not *configurable for every imaginable future*. Free has a test: no extra file, no extra concept anyone has to be taught, and no more lines than pinning it down would have cost. Costs more than that and it isn't flexibility, it's an abstraction — and `abstraction.call_sites` decides whether that gets to exist at all.
 - Extracting a component, helper, or module is not a violation of "smallest change" — a well-placed seam is often the smaller change. Reach for one when it removes duplication already in front of you or isolates the part that varies; don't reach for one to stage a future nobody asked for.
 - **No hardcode.** Anything that names something outside the code — URLs, hosts, keys, IDs, paths, limits, env-specific strings, feature names — comes from config, a constant, or a parameter. Where the project already has a config surface (a typed options class, an env loader, a constants file), extend that one instead of opening a second.
@@ -101,9 +111,25 @@ Review deliberately, not repeatedly. `review.rounds` pass(es) at `review.effort`
   - *Cross-stack contract* (skip if the change touches only one side) — do the request/response shape, field name, type, and error format actually match on both ends? A frontend type and a backend response can each look correct in isolation while drifting apart; diff the real payload/type against what the other side sends or expects, don't just re-read each side separately.
 - **Ask what should be there and isn't.** A diff can only show what was written; these get missed precisely because nobody typed them — rate limiting or lockout on anything guessable, an authorization check on a path that just became reachable, an upper bound on payload size and page size, a timeout and a retry cap on every outbound call. A new surface usually needs a control no one wrote.
 - **Findings are evidence, not verdicts.** The reviewer lacks this session's context and will sometimes be wrong. Check each finding against the code before acting on it, and name the ones you rejected and why. "Fixing" a finding you don't believe makes the code worse and buries the findings that were real.
-- Fix what it finds and re-run §3. Send it back beyond `review.rounds` only if the fixes amount to a new change of their own — otherwise `review.rounds` is the whole loop.
+- Fix what it finds and re-run §3. Send it back beyond `review.rounds` only if the fixes amount to a new change of their own — otherwise `review.rounds` is the whole loop. A correction the Structure check makes is not that new change.
 - **`review.max_rounds` is a hard ceiling, not a budget to spend.** Hitting it is a signal, not a step: stop delegating, say plainly that the change has outgrown one review cycle, and hand the caller (§0) the findings that are still open plus what you'd do next. Re-reviewing past the ceiling hides a scope problem instead of surfacing it.
-- A clean pass means the process is clean, not that the goal is met. Before moving on, confirm the one-sentence goal from §1 is actually satisfied, not just that no more issues turned up.
+- A clean pass means the process is clean, not that the goal is met. Before moving on, confirm the one-sentence goal from §1 is actually satisfied, not just that no more issues turned up. Then run the Structure check on the diff, then Optimize — a correct diff the caller still has to clean is not done.
+
+## Optimize — one pass, then stop
+
+§4 asks what breaks. This asks what the caller will still want to delete once the change is correct. A finding §4 already fixed is not done again here.
+
+Run it on the diff you are about to hand over, after §4 when that round ran, and after §3 has been re-run for any fix that landed. The session that holds the goal runs it — it edits, so it is not delegated and it is not a second review. The typo tier skips it. A small fix runs it only on the lines the change touched.
+
+Three moves, in order:
+
+1. **Remove.** Dead code, unused names, debug leftovers, a branch the final shape made unreachable, a comment that restates the next line. If removing it does not change behavior, it goes. Orphans this change created go; pre-existing dead code stays and is named in §8.
+2. **Collapse.** A helper, parameter, or branch this change added that now has a single call site and no reason to vary. Inline it. A seam Structure named as load-bearing stays, including when it has one call site. Do not add an abstraction, a config key, or a layer to make the diff cleaner.
+3. **Bound the cost this change introduced.** An N+1, an unbounded loop or payload, a query or render that now runs per item with no cap. Fix those in place. A cache, an index, a pool, or a new dependency needs a measurement named in the §8 report. No measurement, no speed rewrite.
+
+Out of scope: behavior the goal didn't ask for, files the task list doesn't name, and anything that changes what the tests assert. A move that would need a new or changed test is skipped and named in §8. It does not go back to §3 — going back reopens the walk, and §4 would run this pass again.
+
+After the three moves, re-read the diff and re-run the check §3 already used. Green means the pass kept behavior. Red means revert the move that broke it — do not patch forward. An orphan the pass itself just created (an import left behind by a removal) is still this pass. Then stop. `optimize.passes` is the whole budget. Anything you still see and did not do is named in §8 — it is not a reason to walk the diff again, and not a question for the caller.
 
 ## 5. Split across agents — when it actually pays
 
@@ -198,7 +224,7 @@ The single-sitting skip above lapses the moment any of these becomes true — a 
 
 - **Run it in-session, from your own transcript, before the report.** Never delegate it: a subagent sees the diff, and a step that never happened leaves nothing in a diff to see. It re-reads what you already did, so it costs a fraction of §4 — and it does not stand in for §4, it is what catches §4 going missing.
 - **Scale it with §1's tier**, exactly like every other section.
-- **Each line ends settled — done, fixed now, or named in §8 as deliberately skipped** with the tier that allowed it. Mentioning a step is not doing it: a missing §3 or §4 that this change actually needed means go and run it.
+- **Each line ends settled — done, fixed now, or named in §8 as deliberately skipped** with the tier that allowed it. Mentioning a step is not doing it: a missing §3, §4, Structure, or Optimize that this change actually needed means go and run it.
 - **Audit the rules that are here, not the ones this session wishes were here.** A gap with no rule behind it is a `FRICTION.md` line, not a checklist item you add on the spot — same reason the skill doesn't edit its own rules mid-task.
 
 What to walk:
@@ -206,6 +232,7 @@ What to walk:
 - §0 — every open decision went back to the caller. Nothing was guessed past.
 - §1 — the goal was said out loud before the first edit, and it is still the goal being built to.
 - §1 — the repo's standing constraints were read, not only the scope-matched docs.
+- Structure — the case was named before the first edit. Existing, including a refactor: no new folder, layer, or pattern. New: the diff matches the boundary and interface named beforehand, and that seam was not collapsed. The check ran once; a correction did not re-enter §4.
 - §2 — every file touched is on the task list, or the widening was said out loud *before* it was touched.
 - §2 — anything reaching a shared environment has its way back written down; anything irreversible was confirmed before it ran.
 - §3 — the baseline came from a run before the change, not from what a doc claims builds.
@@ -213,6 +240,7 @@ What to walk:
 - §3 — the full diff was read, and every result reported is a concrete one (output, exit code, screenshot).
 - §3 — UI or user-visible change → seen working in the real app; auth, input handling, rendering user-controlled data, or secrets → `security-review` ran.
 - §4 — the delegated round ran at `review.effort` with no model override, findings were checked against the code, and rejected ones named. The harness forbids spawning agents → say so in §8 and offer the round; a self-read does not count as one.
+- Optimize — one pass ran on the diff that shipped, or the tier skipped it and §8 says so. The check §3 used was re-run after the moves and was green, or the breaking move was reverted. A move that would have changed a test was skipped and named. A speed change names its measurement. The pass did not run a second time.
 - §5 — a subagent ran only on work no other in-flight task already owned; a duplicate was skipped and named. "Unless the user asked" was treated as satisfied here. An unconditional ban → said so in §8.
 - §5 — work was split only after the risk pass was written down, and no two agents touched the same file or shared surface.
 - §5 — per-slice results were re-verified on the integrated tree; nothing was reported green on a slice's word alone.
@@ -271,10 +299,14 @@ If this change affects documented behavior (a route, an API contract, a decision
 - Open a subagent on work another in-flight task already owns.
 - Guess past an open decision instead of returning it to the caller (§0).
 - Claim high confidence without evidence to back it.
+- Rewrite for speed without a measurement named in the §8 report.
+- Invent a new folder, layer, or pattern on a refactor.
 - Edit this file without bumping `version` and adding a Changelog line.
 
 ## Changelog
 
+- 2.5.0 (2026-09-23) — Structure: name new or existing before the edit. A named new boundary is exempt from `abstraction.call_sites`; one correction does not reopen §4. A refactor keeps the structure already there
+- 2.4.0 (2026-09-23) — Optimize, one pass after §4: remove, collapse, bound a cost this change introduced. No speed rewrite without a measurement
 - 2.3.0 (2026-09-23) — §5 authorizes subagents for speed; a slice that repeats another in-flight task is a no. "Unless the user asked" counts as asked
 - 2.2.0 (2026-09-22) — §5 rewritten: mandatory pre-split risk pass, three fan-out shapes, non-interference and isolation rules, main-session-owns-merge
 - 2.1.0 (2026-09-22) — require a version bump + changelog line on every SKILL.md edit

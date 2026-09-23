@@ -1,8 +1,9 @@
 # leancode
 
 A coding-workflow skill for agents. It turns "implement this" from a single leap into
-a walk with nine steps, and (the part most workflows leave out) it **audits whether
-the walk actually happened** before it reports anything back.
+a walk with nine steps plus a structure check and one tighten pass on the finished diff, and (the part most
+workflows leave out) it **audits whether the walk actually happened** before it
+reports anything back.
 
 Written for [Claude Code](https://claude.com/claude-code) skills, but it is one
 Markdown file with YAML frontmatter, so any agent that loads skills by description
@@ -14,9 +15,11 @@ can read it.
 | --- | --- |
 | §0 Entry and return | Note who handed the work over. Hit a decision you cannot make → hand it **back**, don't guess and don't pick the next skill for them |
 | §1 Plan first | Say the goal out loud before the first edit; read the code this touches; read the repo's standing constraints, not just the scope-matched docs |
+| Structure | Name the case before the edit. A new boundary is checked against that decision. A refactor keeps the structure already there |
 | §2 Build lean | Reuse before adding; no new abstraction until there are real call sites for it |
 | §3 Verify with evidence | A baseline run *before* the change; the new test seen red; the full diff read. Never "should work" |
 | §4 Self-review | A delegated review round, findings checked against the code, rejected ones named |
+| Optimize | One pass on the finished diff: remove, collapse, bound a cost this change introduced. No speed rewrite without a measurement |
 | §5 Split across agents | Subagents are authorized for speed. Analyse the risk *before* splitting; never repeat an in-flight task; fan out only onto slices that cannot touch each other; the main session owns the merge |
 | §6 Continuity | `HANDOFF.md` once the session is close to running out, so the next one doesn't start cold |
 | §7 Audit | Re-read the **session**, not the diff. A step that never happened leaves nothing in a diff to see |
@@ -26,7 +29,7 @@ can read it.
 Two design decisions carry most of the weight:
 
 **Ceremony scales with the change, and the level is said out loud.** A typo gets a
-diff read. A small fix gets §2, §3, §8. Anything else gets the whole walk. Without
+diff read. A small fix gets §2, §3, Structure, Optimize, §8. Anything else gets the whole walk. Without
 this a workflow skill is only ever obeyed on the tasks that did not need it.
 
 **The skill never edits its own rules mid-task.** Observations go into an
@@ -112,6 +115,7 @@ from the section that uses it. Change the number there; don't hunt for it in the
 | `build.max_cycles` | 3 | Build→verify cycles before stopping to rethink |
 | `review.rounds` | 1 | Delegated self-review passes |
 | `review.max_rounds` | 2 | Hard ceiling; past this, hand back to the caller |
+| `optimize.passes` | 1 | One pass on the finished diff; leftovers are named, not re-hunted |
 
 ### Update / remove
 
