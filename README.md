@@ -17,7 +17,7 @@ can read it.
 | §2 Build lean | Reuse before adding; no new abstraction until there are real call sites for it |
 | §3 Verify with evidence | A baseline run *before* the change; the new test seen red; the full diff read. Never "should work" |
 | §4 Self-review | A delegated review round, findings checked against the code, rejected ones named |
-| §5 Split across agents | Analyse the risk of splitting *before* splitting; fan out only onto slices that cannot touch each other; the main session owns the merge |
+| §5 Split across agents | Subagents are authorized for speed. Analyse the risk *before* splitting; never repeat an in-flight task; fan out only onto slices that cannot touch each other; the main session owns the merge |
 | §6 Continuity | `HANDOFF.md` once the session is close to running out, so the next one doesn't start cold |
 | §7 Audit | Re-read the **session**, not the diff. A step that never happened leaves nothing in a diff to see |
 | §8 Report | What changed, why, how it was verified, and what was deliberately skipped |
