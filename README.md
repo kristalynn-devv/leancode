@@ -102,6 +102,12 @@ Without it §7's last line has nowhere to write, and the skill stops learning fr
 own runs. One line per run, including the runs that went fine, because a log of only
 the failures is a numerator with no denominator.
 
+### Optional: guard irreversible commands
+
+[`adapters/`](./adapters/README.md) holds a harness-neutral list of commands that must
+be confirmed before they run (`patterns.txt`), plus a Claude Code hook that asks before
+any of them runs. The skill works without it.
+
 ### Tune it
 
 Every threshold lives in one table at the top of `SKILL.md` and is referenced by name

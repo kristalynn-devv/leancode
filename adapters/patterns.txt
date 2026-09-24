@@ -1,0 +1,16 @@
+# Commands the agent must confirm before running (SKILL.md §2: anything irreversible).
+# One POSIX extended regex per line, matched case-sensitively against the whole command.
+# Harness-neutral: each adapter reads this file; add project-specific rules in your own
+# harness settings, not here.
+git push.*(--force|--force-with-lease|[[:space:]]-f([[:space:]]|$))
+git push.*(--delete|[[:space:]]:[^[:space:]])
+git reset --hard
+git clean -[a-zA-Z]*f
+git branch -D
+git checkout -- \.
+rm[[:space:]]+-[a-zA-Z]*[rR]
+(DROP|drop)[[:space:]]+(TABLE|DATABASE|SCHEMA|table|database|schema)
+(TRUNCATE|truncate)[[:space:]]
+kubectl[[:space:]].*(delete|drain)
+helm[[:space:]]+(uninstall|delete|rollback)
+terraform[[:space:]]+(destroy|apply)
