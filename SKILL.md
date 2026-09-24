@@ -1,7 +1,7 @@
 ---
 name: leancode
 description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a structure check (a new boundary is named before the edit and matched on the diff; a refactor keeps the structure already there), one tighten pass on the finished diff (remove, collapse, bound a cost the change introduced — no unmeasured speed rewrite), a closing audit of the walk itself, a risk-assessed split across subagents for speed when slices are independent and do not repeat another in-flight task, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
-version: 2.8.0
+version: 2.9.0
 ---
 
 # Lean Code Workflow
@@ -89,7 +89,7 @@ Check the diff against the case you named once, after §4 when that round ran, b
 
 ## 3. Verify with evidence — never by assertion
 
-- **Run it once before you change anything.** A test that was already red, a build that was already broken, a lint that already complained — without that first run you can't separate your breakage from the breakage you inherited, and you'll debug the wrong thing. What the project's docs claim about what builds is not evidence; the run is. A baseline that is already red is a finding, not a blocker: record exactly what was failing before you started and report it in §8 — but don't fix it unless it blocks you (§2). Green-after means nothing if you can't say what red-before looked like.
+- **Run it once before you change anything.** A test that was already red, a build that was already broken, a lint that already complained — without that first run you can't separate your breakage from the breakage you inherited, and you'll debug the wrong thing. What the project's docs claim about what builds is not evidence; the run is. A baseline that is already red is a finding, not a blocker: record exactly what was failing before you started and report it in §8 — but don't fix it unless it blocks you (§2). Green-after means nothing if you can't say what red-before looked like. **Don't sit idle on it:** where the harness can run a command in the background, start the baseline as soon as the code is read and write the task list and Structure case while it runs. The first edit waits for its result — a run still going when files change measures neither tree. No background → run it in line, same order.
 - Actually run something: the test, the build, the lint, the script, the page.
 - **New behavior needs a test that fails without the change.** A test that is green both before and after proves nothing — run it against the baseline above to prove it actually catches the thing you just built.
 - **`build.max_cycles` caps the build→verify loop.** The same thing failing twice for a *different* reason means the approach is wrong, not the code: stop patching symptoms and step back — and if the rethink is a decision rather than a fix, return it (§0). Hitting the cap is a stop, not a budget; say what still fails and what you'd try next.
@@ -104,7 +104,7 @@ Check the diff against the case you named once, after §4 when that round ran, b
 
 Review deliberately, not repeatedly. `review.rounds` pass(es) at `review.effort`, thinking at full depth, beats several cheap re-reads by the model that just wrote the code — that model is the worst reviewer of its own work.
 
-- **Delegate it** — §5 owns the mechanics of spawning, briefing, and the harness-forbids-it fallback, and its standing authorization covers this round. A missing "use a subagent" in the current message is not a ban. What this pass buys is depth, not a different nameplate: spend it on effort, not on model shopping. Claude Code: `Agent` tool with `subagent_type: "general-purpose"` and **no `model` override** — the review runs on the session's own model, and never on Fable. Open the prompt with `ultrathink` so it runs at `review.effort`. On any other harness, select the deepest thinking mode available and leave the model alone. **The reviewer reads and reports; it never edits.** Fixing is the main session's job — a reviewer that patches its own findings puts changes into the diff that nobody reviewed, and collides with §5.
+- **Delegate it** — §5 owns the mechanics of spawning, briefing, and the harness-forbids-it fallback, and its standing authorization covers this round. A missing "use a subagent" in the current message is not a ban. What this pass buys is depth, not a different nameplate: spend it on effort, not on model shopping. Claude Code: `Agent` tool with `subagent_type: "general-purpose"` and **no `model` override** — the review runs on the session's own model, and never on Fable. Open the prompt with `ultrathink` so it runs at `review.effort`. On any other harness, select the deepest thinking mode available and leave the model alone. Where the harness runs agents in the background, draft the §8 report and walk §7's lines up to §3 while the round runs — neither edits the diff, and the rest of §7 waits for what comes after. Optimize and any fix wait for the findings. **The reviewer reads and reports; it never edits.** Fixing is the main session's job — a reviewer that patches its own findings puts changes into the diff that nobody reviewed, and collides with §5.
 - **Brief it properly.** The reviewer doesn't share this session's context: give it the one-sentence goal from §1, the full diff (`git diff`, plus `--staged` if anything is staged), and the surrounding files it should read. Ask for concrete findings — file, line, what breaks — not a grade.
 - **Every pass covers all three dimensions:**
   - *Correctness* — edge cases, empty/null inputs, error paths, off-by-one, async ordering, resource cleanup, security (auth checks, input trust), performance (extra queries/renders, unbounded work the change introduced).
@@ -236,7 +236,7 @@ What to walk:
 - Structure — the case was named before the first edit. Existing, including a refactor: no new folder, layer, or pattern. New: the diff matches the boundary and interface named beforehand, and that seam was not collapsed. The check ran once; a correction did not re-enter §4.
 - §1 / §2 — the task list stayed current step by step, and every file touched is on it, or the widening was said out loud *before* it was touched.
 - §2 — anything reaching a shared environment has its way back written down; anything irreversible was confirmed before it ran.
-- §3 — the baseline came from a run before the change, not from what a doc claims builds.
+- §3 — the baseline came from a run that finished before the first edit, not from what a doc claims builds.
 - §3 — the test that proves new behavior was actually seen red against that baseline, not assumed to be.
 - §3 — the full diff was read, and every result reported is a concrete one (output, exit code, screenshot).
 - §3 — UI or user-visible change → seen working in the real app; auth, input handling, rendering user-controlled data, or secrets → `security-review` ran, or §3's in-session fallback ran and §8 names it.
@@ -306,6 +306,7 @@ If this change affects documented behavior (a route, an API contract, a decision
 
 ## Changelog
 
+- 2.9.0 (2026-09-24) — §3 baseline runs in the background during planning and finishes before the first edit; §4 review runs in the background while §8 is drafted and §7 walked up to §3; Optimize waits for findings
 - 2.8.0 (2026-09-24) — §1 task list lives in the harness's todo tool when present, kept current per step, gates each edit; §7 friction line records tier and wall time
 - 2.7.1 (2026-09-24) — §7 audit line for §5 matches 2.7.0's conditional wording
 
