@@ -13,7 +13,7 @@ At the **end** of a task — never mid-task.
 **Every run gets one line.** Without these there is no denominator, and "the skill failed 3 times" means nothing.
 
 ```
-- 2026-09-17 · <repo> · <task in a few words> · <ended: shipped | returned to caller | stopped at ceiling | abandoned>
+- 2026-09-17 · <repo> · <task in a few words> · <tier: typo | small | full> · <wall time, e.g. 42m, or ? if not taken at §1> · <ended: shipped | returned to caller | stopped at ceiling | abandoned>
 ```
 
 **A run where a rule failed gets a second line.** Log both directions — a rule that fired and was useless matters as much as a rule that was missing, because it is the only thing that ever justifies *deleting* a rule. Without deletions the file only grows.

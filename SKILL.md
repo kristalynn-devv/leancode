@@ -1,7 +1,7 @@
 ---
 name: leancode
 description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a structure check (a new boundary is named before the edit and matched on the diff; a refactor keeps the structure already there), one tighten pass on the finished diff (remove, collapse, bound a cost the change introduced — no unmeasured speed rewrite), a closing audit of the walk itself, a risk-assessed split across subagents for speed when slices are independent and do not repeat another in-flight task, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
-version: 2.7.1
+version: 2.8.0
 ---
 
 # Lean Code Workflow
@@ -53,7 +53,7 @@ A project can override any of these in its own `CLAUDE.md`; the project's value 
 - Nothing to read because this is a new project or a part of it that doesn't exist yet → this isn't a coding step, it's a foundational decision (stack, structure, conventions). Return it to the caller (§0) — don't default your way into an architecture nobody chose. Whatever gets decided becomes the "existing pattern" every later change matches against.
 - If the project has a docs router or index (e.g. a root `CLAUDE.md` that maps areas to files), follow it and read only the doc(s) matching this change's scope — never the whole doc tree. If no router exists, grep docs for the specific area instead of opening every file. A doc irrelevant to the current change is not worth its tokens.
 - **Constraints are not scoped — read them every time.** A repo's standing prohibitions ("additive only", "don't refactor", "don't touch business logic", a frozen contract) usually live in the root `CLAUDE.md` or its equivalent, and usually do *not* match the scope of your change — so the scope-limited read above walks straight past them. Find them first, and restate the ones that bind this change in the plan. A rule you never read is a rule you will break. When an instruction and a repo constraint collide, say so before building and let the caller resolve it — don't quietly pick a side.
-- Write the sequential steps as a task list before editing anything.
+- Write the sequential steps as a task list before editing anything — in the harness's own todo or task tool when it has one, otherwise in the message. Mark each step done as it finishes, not in a batch at the end. Before each edit, the file belongs to the step marked current; if it doesn't, that is §2's widening, said out loud first, or a new step added to the list first.
 - A change that adds a file, moves code, or could be done by reshaping where things live → Structure, before the task list.
 - Something doesn't resolve cleanly from the code or project docs — an unfamiliar library's API, a framework convention, a spec detail, a version-specific behavior — look it up (web search, official docs, or a docs tool like Context7) before guessing from memory or training data, which can be stale or simply wrong. Cite what you found when it changes the plan.
 - Ask only questions that actually block the work; otherwise pick the obvious default and state the assumption. A genuinely blocking question goes back to the caller (§0), never into the build as a guess. A reference lookup that resolves it is better than either guessing or asking.
@@ -234,7 +234,7 @@ What to walk:
 - §1 — the goal was said out loud before the first edit, and it is still the goal being built to.
 - §1 — the repo's standing constraints were read, not only the scope-matched docs.
 - Structure — the case was named before the first edit. Existing, including a refactor: no new folder, layer, or pattern. New: the diff matches the boundary and interface named beforehand, and that seam was not collapsed. The check ran once; a correction did not re-enter §4.
-- §2 — every file touched is on the task list, or the widening was said out loud *before* it was touched.
+- §1 / §2 — the task list stayed current step by step, and every file touched is on it, or the widening was said out loud *before* it was touched.
 - §2 — anything reaching a shared environment has its way back written down; anything irreversible was confirmed before it ran.
 - §3 — the baseline came from a run before the change, not from what a doc claims builds.
 - §3 — the test that proves new behavior was actually seen red against that baseline, not assumed to be.
@@ -247,7 +247,7 @@ What to walk:
 - §5 — per-slice results were re-verified on the integrated tree; nothing was reported green on a slice's word alone.
 - §6 — `HANDOFF.md` matches where the work actually is, or is gone because the work finished here.
 - Never — no claim in the report rests on a search you cut short or a document you didn't run.
-- **Friction** — this skill's own log lives beside this file, `FRICTION.md` next to `SKILL.md`. At the *end* of every task, append one dated line: what the task was and how it ended. Add a second line only when a rule here failed you — didn't fire when it should have, fired wrongly, or there was simply no rule. Logging only the failures gives a numerator with no denominator, and no rate can be read from it. Never edit the rules themselves from inside a task: the session that just got burned is the worst judge of what the rule should be. This one file is exempt from §9's ask-first rule because it only records observations and changes no behaviour; `FRICTION.md` carries its own bar for what may later be promoted into a rule.
+- **Friction** — this skill's own log lives beside this file, `FRICTION.md` next to `SKILL.md`. At the *end* of every task, append one dated line: what the task was, the §1 tier (typo, small, full), the wall time, and how it ended. Take the time from `date` (or the harness's clock) once at §1 and once here; none taken at §1 → write `?`, never an estimate. Tier and time are the measurement a speed change to this skill needs. Add a second line only when a rule here failed you — didn't fire when it should have, fired wrongly, or there was simply no rule. Logging only the failures gives a numerator with no denominator, and no rate can be read from it. Never edit the rules themselves from inside a task: the session that just got burned is the worst judge of what the rule should be. This one file is exempt from §9's ask-first rule because it only records observations and changes no behaviour; `FRICTION.md` carries its own bar for what may later be promoted into a rule.
 
 ## 8. Report
 
@@ -306,6 +306,7 @@ If this change affects documented behavior (a route, an API contract, a decision
 
 ## Changelog
 
+- 2.8.0 (2026-09-24) — §1 task list lives in the harness's todo tool when present, kept current per step, gates each edit; §7 friction line records tier and wall time
 - 2.7.1 (2026-09-24) — §7 audit line for §5 matches 2.7.0's conditional wording
 
 - 2.7.0 (2026-09-24) — harness-neutral wording: §2 comments follow the file's density; §5 standing ask applies only where a harness bans spawning; §6 note is a checkpoint, needed with or without compaction
