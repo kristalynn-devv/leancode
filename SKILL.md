@@ -1,7 +1,7 @@
 ---
 name: leancode
 description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a structure check (a new boundary is named before the edit and matched on the diff; a refactor keeps the structure already there), one tighten pass on the finished diff (remove, collapse, bound a cost the change introduced — no unmeasured speed rewrite), a closing audit of the walk itself, a risk-assessed split across subagents for speed when slices are independent and do not repeat another in-flight task, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
-version: 2.5.0
+version: 2.7.1
 ---
 
 # Lean Code Workflow
@@ -77,7 +77,7 @@ Check the diff against the case you named once, after §4 when that round ran, b
 - Extracting a component, helper, or module is not a violation of "smallest change" — a well-placed seam is often the smaller change. Reach for one when it removes duplication already in front of you or isolates the part that varies; don't reach for one to stage a future nobody asked for.
 - **No hardcode.** Anything that names something outside the code — URLs, hosts, keys, IDs, paths, limits, env-specific strings, feature names — comes from config, a constant, or a parameter. Where the project already has a config surface (a typed options class, an env loader, a constants file), extend that one instead of opening a second.
 - **Few inline literals.** A literal that appears more than once, carries meaning beyond its raw value, or would read as magic to the next person gets a name. A one-off literal whose meaning is obvious at the call site stays inline — naming it would cost more than it saves.
-- **Short comments.** One line, saying *why*, not *what*. A comment that needs a paragraph is a signal the code or the naming is wrong — fix that instead. No commented-out code, no restating the line below it.
+- **Short comments.** One line, saying *why*, not *what*, at the density the file around it already uses — don't strip a documented file bare or comment a terse one line by line. A comment that needs a paragraph is a signal the code or the naming is wrong — fix that instead. No commented-out code, no restating the line below it.
 - Match the existing patterns, naming, and file layout of the codebase — don't introduce a second way to do the same thing.
 - Before writing new code, search for an existing component, util, or helper that already does this — reuse or extend it before writing a new one.
 - When this change needs the same logic, markup/UI, or type shape in 2+ places, extract a helper, component, or shared type now instead of duplicating it — that's real duplication already in front of you, not the hypothetical future the `abstraction.call_sites` rule above guards against.
@@ -98,6 +98,7 @@ Check the diff against the case you named once, after §4 when that round ran, b
 - **Verify the target environment before testing against it.** Once you have *checked* that it's a dev environment, test it hard — smoke runs, real requests, writes, restarts, whatever the change deserves. Checked means you ran something that names the target (the cluster context, the namespace, the host, the connection string) and read the answer back; inferring it from a branch name, a file you opened, or a config labelled "dev" somewhere is not checking. Not verified, or only fairly sure → ask before the first smoke test, not after it.
 - Touched auth, input handling, the rendering of user-controlled data, secrets, or anything crossing a trust boundary → also run `security-review` before calling it done. Rendering counts: most injection arrives on the way out, through a template or an `innerHTML`, not on the way in.
 - Touched UI or user-visible behavior → also use `run` (or `web-design-guidelines` for a UI-standards pass) to see it working in the real app, not just green tests.
+- **The named skill isn't there, or can't run as written** — the harness has no such skill, or bans the sub-tasks it spawns → run its substance in-session. Security: walk the diff against the trust-boundary list above — an authorization check on every newly reachable path, input validation, output encoding where user data renders, secrets kept out of logs and client bundles — and report each finding with file and line. UI: drive the real app yourself (dev server plus a browser or screenshot tool, or a temporary probe that mounts the component), then delete the probe. Either way, point it at this change's diff (working tree plus staged), not the last commit. Name the fallback in §8 and don't call it the skill. Nothing can drive the real app → say so; green tests don't stand in for it.
 
 ## 4. Self-review — maximum effort
 
@@ -133,7 +134,7 @@ After the three moves, re-read the diff and re-run the check §3 already used. G
 
 ## 5. Split across agents — when it actually pays
 
-**Subagents are allowed. Open one when it makes the work faster.** This section is the user's standing request to spawn: a harness line that says not to call the agent tool unless the user asked is already answered here. Don't wait for the word "subagent" in the current message. Use whatever spawn the harness actually has (Claude Code: `Agent`; Cursor: `Task`) and leave the model alone unless the user named one.
+**Subagents are allowed. Open one when it makes the work faster.** This section is the user's standing request to spawn: where a harness says not to call the agent tool unless the user asked, this is that ask; where it already allows spawning, this adds nothing. Don't wait for the word "subagent" in the current message. Use whatever spawn the harness actually has (Claude Code: `Agent`; Cursor: `Task`) and leave the model alone unless the user named one.
 
 A second agent still costs a cold start: it shares none of this session's context, so everything it needs must be written out, and everything it learns comes back as a report. Pay that cost for a read across areas, the §4 review, or a build slice that is already independent. Don't pay it for a lookup one search would finish, or because the task merely has several parts.
 
@@ -208,7 +209,7 @@ uncommitted: <files>
 - about to start anything irreversible or long-running;
 - a rate limit, `/clear`, or an interrupt already in sight.
 
-The single-sitting skip above lapses the moment any of these becomes true — a task that grew past one sitting gets its note retroactively, reconstructed from `git diff` and `git log`. Writing it costs a few hundred tokens; not writing it costs the whole session's state. If it turns out the work finishes in this sitting, delete the file in one line at the end.
+The single-sitting skip above lapses the moment any of these becomes true — a task that grew past one sitting gets its note retroactively, reconstructed from `git diff` and `git log`. Writing it costs a few hundred tokens; not writing it costs the whole session's state. The note is a checkpoint, not a stopping point. Context summarized by the harness still loses what isn't on disk, so the note matters whether or not the harness compacts. If it turns out the work finishes in this sitting, delete the file in one line at the end.
 
 **Work spanning more than one repo gets one note, not one per repo.** Put `HANDOFF.md` in the repo where the build is driven, and name the other repos in it along with what is pending in each. Separate notes drift apart, and the one you resume from is never the one that was current.
 
@@ -238,10 +239,10 @@ What to walk:
 - §3 — the baseline came from a run before the change, not from what a doc claims builds.
 - §3 — the test that proves new behavior was actually seen red against that baseline, not assumed to be.
 - §3 — the full diff was read, and every result reported is a concrete one (output, exit code, screenshot).
-- §3 — UI or user-visible change → seen working in the real app; auth, input handling, rendering user-controlled data, or secrets → `security-review` ran.
+- §3 — UI or user-visible change → seen working in the real app; auth, input handling, rendering user-controlled data, or secrets → `security-review` ran, or §3's in-session fallback ran and §8 names it.
 - §4 — the delegated round ran at `review.effort` with no model override, findings were checked against the code, and rejected ones named. The harness forbids spawning agents → say so in §8 and offer the round; a self-read does not count as one.
 - Optimize — one pass ran on the diff that shipped, or the tier skipped it and §8 says so. The check §3 used was re-run after the moves and was green, or the breaking move was reverted. A move that would have changed a test was skipped and named. A speed change names its measurement. The pass did not run a second time.
-- §5 — a subagent ran only on work no other in-flight task already owned; a duplicate was skipped and named. "Unless the user asked" was treated as satisfied here. An unconditional ban → said so in §8.
+- §5 — a subagent ran only on work no other in-flight task already owned; a duplicate was skipped and named. Where the harness had an "unless the user asked" clause, it was treated as satisfied. An unconditional ban → said so in §8.
 - §5 — work was split only after the risk pass was written down, and no two agents touched the same file or shared surface.
 - §5 — per-slice results were re-verified on the integrated tree; nothing was reported green on a slice's word alone.
 - §6 — `HANDOFF.md` matches where the work actually is, or is gone because the work finished here.
@@ -305,6 +306,11 @@ If this change affects documented behavior (a route, an API contract, a decision
 
 ## Changelog
 
+- 2.7.1 (2026-09-24) — §7 audit line for §5 matches 2.7.0's conditional wording
+
+- 2.7.0 (2026-09-24) — harness-neutral wording: §2 comments follow the file's density; §5 standing ask applies only where a harness bans spawning; §6 note is a checkpoint, needed with or without compaction
+
+- 2.6.0 (2026-09-24) — §3: in-session fallback when `security-review` or `run` is missing or can't spawn, aimed at this change's diff; §7 accepts it when named
 - 2.5.0 (2026-09-23) — Structure: name new or existing before the edit. A named new boundary is exempt from `abstraction.call_sites`; one correction does not reopen §4. A refactor keeps the structure already there
 - 2.4.0 (2026-09-23) — Optimize, one pass after §4: remove, collapse, bound a cost this change introduced. No speed rewrite without a measurement
 - 2.3.0 (2026-09-23) — §5 authorizes subagents for speed; a slice that repeats another in-flight task is a no. "Unless the user asked" counts as asked
