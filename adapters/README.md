@@ -32,6 +32,28 @@ echo '{"tool_input":{"command":"git reset --hard"}}' | ~/.claude/skills/leancode
 A hook that fails (the script missing, `patterns.txt` unreadable) lets the command
 through, and the `SKILL.md` rule is then the only guard left.
 
+### In auto mode, use `permissions.ask` instead
+
+In auto mode the hook's `"ask"` did not show a prompt in testing, and the docs don't say
+how auto mode treats it. `permissions.ask` rules do prompt in auto mode: they are
+[documented](https://code.claude.com/docs/en/permissions.md) to, and did in testing,
+including behind a `cd … &&` prefix. Mirror `patterns.txt` as rules, for example:
+
+```json
+"permissions": {
+  "ask": [
+    "Bash(git push *)", "Bash(git reset --hard*)", "Bash(git clean *)",
+    "Bash(git branch -D *)", "Bash(git checkout -- *)", "Bash(rm -r*)",
+    "Bash(kubectl delete *)", "Bash(kubectl drain *)", "Bash(helm uninstall *)",
+    "Bash(helm rollback *)", "Bash(terraform destroy*)", "Bash(terraform apply*)"
+  ]
+}
+```
+
+Rules match by prefix, so they are coarser than the regexes: `git push *` asks on every
+push, not only a forced one, and SQL inside a command (`psql -c 'DROP …'`) is not caught.
+Merge them into any `permissions.ask` you already have.
+
 ## Other harnesses
 
 None yet. An adapter for another harness reads `patterns.txt` and asks before a
