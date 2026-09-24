@@ -1,0 +1,21 @@
+# Codex execpolicy rules mirroring ../patterns.txt: "forbidden" blocks without prompting.
+# Copy to ~/.codex/rules/ or <repo>/.codex/rules/ (trusted projects only).
+# Rules match a token prefix, so flag order matters; ../guard.sh (as a hook) catches the rest.
+prefix_rule(pattern=["git", "push", "--force"], decision="forbidden", justification="leancode: force-push rewrites shared history")
+prefix_rule(pattern=["git", "push", "-f"], decision="forbidden", justification="leancode: force-push rewrites shared history")
+prefix_rule(pattern=["git", "push", "--force-with-lease"], decision="forbidden", justification="leancode: force-push rewrites shared history")
+prefix_rule(pattern=["git", "reset", "--hard"], decision="forbidden", justification="leancode: discards uncommitted work")
+prefix_rule(pattern=["git", "clean", "-f"], decision="forbidden", justification="leancode: deletes untracked files")
+prefix_rule(pattern=["git", "clean", "-fd"], decision="forbidden", justification="leancode: deletes untracked files")
+prefix_rule(pattern=["git", "clean", "-fdx"], decision="forbidden", justification="leancode: deletes untracked files")
+prefix_rule(pattern=["git", "branch", "-D"], decision="forbidden", justification="leancode: deletes an unmerged branch")
+prefix_rule(pattern=["git", "checkout", "--", "."], decision="forbidden", justification="leancode: discards uncommitted work")
+prefix_rule(pattern=["rm", "-rf"], decision="forbidden", justification="leancode: recursive delete")
+prefix_rule(pattern=["rm", "-fr"], decision="forbidden", justification="leancode: recursive delete")
+prefix_rule(pattern=["rm", "-r"], decision="forbidden", justification="leancode: recursive delete")
+prefix_rule(pattern=["kubectl", "delete"], decision="forbidden", justification="leancode: deletes cluster resources")
+prefix_rule(pattern=["kubectl", "drain"], decision="forbidden", justification="leancode: evicts workloads from a node")
+prefix_rule(pattern=["helm", "uninstall"], decision="forbidden", justification="leancode: removes a release")
+prefix_rule(pattern=["helm", "rollback"], decision="forbidden", justification="leancode: changes a running release")
+prefix_rule(pattern=["terraform", "destroy"], decision="forbidden", justification="leancode: destroys infrastructure")
+prefix_rule(pattern=["terraform", "apply"], decision="forbidden", justification="leancode: changes infrastructure")

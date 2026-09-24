@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      { "command": "~/.claude/skills/leancode/adapters/guard.sh cursor" }
+    ]
+  }
+}

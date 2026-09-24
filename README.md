@@ -105,9 +105,10 @@ the failures is a numerator with no denominator.
 
 ### Optional: guard irreversible commands
 
-[`adapters/`](./adapters/README.md) holds a harness-neutral list of commands that must
-be confirmed before they run (`patterns.txt`), plus a Claude Code hook that asks before
-any of them runs. The skill works without it.
+[`adapters/`](./adapters/README.md) holds a harness-neutral list of destructive commands
+(`patterns.txt`) and, per harness, the native way to block them without a prompt in its
+autonomous mode: nothing to install for Claude Code's auto mode, execpolicy rules for
+Codex, a shell hook for Cursor. The skill works without it.
 
 ### Tune it
 
