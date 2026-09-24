@@ -1,7 +1,7 @@
 ---
 name: leancode
 description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a structure check (a new boundary is named before the edit and matched on the diff; a refactor keeps the structure already there), one tighten pass on the finished diff (remove, collapse, bound a cost the change introduced — no unmeasured speed rewrite), a closing audit of the walk itself, a risk-assessed split across subagents for speed when slices are independent and do not repeat another in-flight task, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
-version: 3.0.0
+version: 4.0.0
 ---
 
 # Lean Code Workflow
@@ -83,7 +83,10 @@ Check the diff against the case you named once, after §4 when that round ran, b
 - When this change needs the same logic, markup/UI, or type shape in 2+ places, extract a helper, component, or shared type now instead of duplicating it — that's real duplication already in front of you, not the hypothetical future the `abstraction.call_sites` rule above guards against.
 - No new dependency when the stdlib or an already-installed package covers it.
 - **Anything reaching an environment you don't solely control needs a known way back — before the first edit, not after the failure.** The exact revert command or rollback step, written down, and known to work; name it in §8 beside what changed. A dev cluster the team shares counts, not just production. If there genuinely is no way back — a one-way migration, a message already consumed, mail already sent — that is not yours to stop on: say so and return it to the caller (§0), because proceeding anyway is their call to make.
-- **Anything irreversible gets confirmed before it runs** — dropping or rewriting data, a migration with no down path, a force-push, deleting files or branches, anything reaching an environment that isn't local. A permissive tool mode is not consent: say what will be lost, then wait for the answer.
+- **Anything irreversible gets confirmed before it runs** — dropping or rewriting data, a force-push, deleting files or branches, anything reaching an environment that isn't local. Who confirms depends on the mode the harness runs in. Not sure which mode → treat it as interactive.
+  - *Interactive* — the harness asks before running what isn't allowlisted. Say what will be lost, then wait for the answer. A permissive allowlist is not consent.
+  - *Autonomous* — the user chose to be away (Claude Code auto mode, Codex auto, Cursor auto-run). The harness's own guard is the confirmation, so don't stop to ask in chat. The guard blocks a command → write it under `HANDOFF.md`'s Blockers with what it would have done, carry on with work that doesn't depend on it, and never route around the block with a different command, a script, or another tool. A mode with no guard at all (a bypass or "yolo" mode) confirms nothing: treat each such command as blocked.
+  - *Always the user's call, in every mode* — a one-way change to data others use: a migration with no down path, or data dropped or rewritten, on a shared database. A harness guard can't know the database is shared. Interactive → ask. Autonomous → don't run it; it is a blocker.
 - **A new config key isn't done until every surface has it.** Find them all — the typed options class, `.env.example`, the ConfigMap or Secret, the deploy manifest, CI variables — and add the key to each. Then name in §8 the ones a human still has to set by hand: a key that exists only on your machine passes every test and 500s in production.
 - Avoid known perf/security footguns as you write, not after: N+1 queries, unbounded loops or payloads, secrets or PII in logs/client bundles, unsanitized input crossing a trust boundary.
 
@@ -189,7 +192,7 @@ What to walk:
 - §1 — the repo's standing constraints were read, not only the scope-matched docs.
 - Structure — the case was named before the first edit. Existing, including a refactor: no new folder, layer, or pattern. New: the diff matches the boundary and interface named beforehand, and that seam was not collapsed. The check ran once; a correction did not re-enter §4.
 - §1 / §2 — the task list stayed current step by step, and every file touched is on it, or the widening was said out loud *before* it was touched.
-- §2 — anything reaching a shared environment has its way back written down; anything irreversible was confirmed before it ran.
+- §2 — anything reaching a shared environment has its way back written down; anything irreversible was confirmed before it ran — by the user in an interactive mode, by the harness's guard in an autonomous one, and a one-way change to shared data by the user in both. A block was recorded in Blockers, not routed around.
 - §3 — the baseline came from a run that finished before the first edit, not from what a doc claims builds.
 - §3 — the test that proves new behavior was actually seen red against that baseline, not assumed to be.
 - §3 — the full diff was read, and every result reported is a concrete one (output, exit code, screenshot).
@@ -229,7 +232,8 @@ If this change affects documented behavior (a route, an API contract, a decision
 - Declare done without having run something.
 - Leave work half-finished without saying so.
 - Edit a doc without the user's go-ahead — except the automatic split in §9 when a doc has bloated.
-- Run something irreversible without confirming it first — a permissive tool mode is not consent.
+- Run something irreversible without confirming it first — the user confirms in an interactive mode, the harness's guard in an autonomous one, and the user always for a one-way change to shared data. A permissive allowlist or a guard-less bypass mode is not consent.
+- Route around a block the harness's guard made.
 - Smoke-test an environment you have not verified is dev.
 - Split work across agents without the §5 risk pass, or let two of them edit the same file, branch, or shared surface.
 - Open a subagent on work another in-flight task already owns.

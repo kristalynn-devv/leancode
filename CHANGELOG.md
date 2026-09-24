@@ -2,6 +2,7 @@
 
 `version` in `SKILL.md`'s frontmatter is the source of truth. Semver: major = breaking walk change, minor = new rule or section, patch = wording. Newest first.
 
+- 4.0.0 (2026-09-24) — §2 irreversible actions: confirmed by the user in an interactive mode, by the harness's guard in an autonomous one (a block goes to Blockers, never routed around); a one-way change to shared data stays the user's call in every mode; §7 and Never match
 - 3.0.0 (2026-09-24) — split for size: §5 risk pass and fan-out shapes → references/split.md, §6 template → references/handoff.md, §9 skeleton → references/doc-skeleton.md, changelog → CHANGELOG.md; each pointer carries an inline fallback
 - 2.9.0 (2026-09-24) — §3 baseline runs in the background during planning and finishes before the first edit; §4 review runs in the background while §8 is drafted and §7 walked up to §3; Optimize waits for findings
 - 2.8.0 (2026-09-24) — §1 task list lives in the harness's todo tool when present, kept current per step, gates each edit; §7 friction line records tier and wall time
