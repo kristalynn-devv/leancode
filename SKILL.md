@@ -1,7 +1,7 @@
 ---
 name: leancode
 description: "Use for any coding task — implementing a feature, fixing a bug, refactoring, reviewing code, or resuming interrupted work. Enforces plan-first (including greenfield work and reference lookups), lean implementation (reuse over duplication, security/perf awareness), a maximum-effort self-review (correctness, fit, cross-stack contracts), a structure check (a new boundary is named before the edit and matched on the diff; a refactor keeps the structure already there), one tighten pass on the finished diff (remove, collapse, bound a cost the change introduced — no unmeasured speed rewrite), a closing audit of the walk itself, a risk-assessed split across subagents for speed when slices are independent and do not repeat another in-flight task, evidence-based completion, ask-first doc hygiene, and a handoff note that survives across sessions. Engages on implementation intent without needing to be named, and returns open decisions to whoever handed the work over rather than guessing or re-routing. Scales down for trivial single-file edits and steps aside for non-coding requests."
-version: 2.9.0
+version: 3.0.0
 ---
 
 # Lean Code Workflow
@@ -28,7 +28,7 @@ A project can override any of these in its own `CLAUDE.md`; the project's value 
 
 ## Versioning
 
-`version` in the YAML frontmatter is the source of truth. Every edit to this file must, in the same change: bump `version` (semver — major = breaking walk change, minor = new rule or section, patch = wording) and add one Changelog line dated today. Say the new version in the §8 report. Append-only lines in `FRICTION.md` do not bump.
+`version` in the YAML frontmatter is the source of truth. Every edit to this file must, in the same change: bump `version` (semver — major = breaking walk change, minor = new rule or section, patch = wording) and add one dated line at the top of `CHANGELOG.md` beside this file. Say the new version in the §8 report. Append-only lines in `FRICTION.md` do not bump.
 
 ## 0. Entry and return
 
@@ -140,26 +140,7 @@ A second agent still costs a cold start: it shares none of this session's contex
 
 **Do not duplicate another task.** Speed is doing the undone part once. Before the first spawn, name the work already in flight — this session's other slices and any agent already running, plus other sessions visible in the working tree, `HANDOFF.md`, or the branch. A slice that repeats that work is a no, even when the files don't overlap: don't re-search it, re-review it, or re-edit it. Skip it or wait for the owner. Don't start a twin.
 
-**Before any split, run the risk pass — and write it down.** Splitting is itself a decision with a blast radius; deciding it in your head is how two agents end up in the same file, or on the same job. Five questions, answered out loud in the plan (§1) before the first agent is spawned:
-
-1. **Whose work is this already?** Name every in-flight task that could own the slice. If one of them already owns the job, do not spawn. This is duplication, not a file collision — the questions below do not catch it.
-2. **What does each slice touch?** List the files, and the shared surfaces behind them — the same type or schema, the same route table, the same config key, the same migration chain, the same lockfile, the same generated artifact. Two slices that never share a *file* can still collide through any of these.
-3. **Where would they interfere?** Working tree and git index, build and test caches, ports and dev servers, a database or dev cluster, rate-limited external calls. Name the collision, then name what keeps it from happening — a worktree, a separate port, a serialized step.
-4. **What breaks if one slice fails or goes wrong halfway?** If the answer is "the other slice is now built on something that doesn't exist", they were never independent. If it's "we throw that worktree away", the split is safe.
-5. **Is it cheaper serialized?** The honest answer is often yes. Say so and serialize — a fan-out that saves ten minutes and costs an hour of integration is a loss. Duplicating an in-flight task is never the cheaper path.
-
-Any question you can't answer concretely is a **no**: serialize, and say why in §8. An unanalyzed risk is not a small risk — it's an unknown one, and §0's rule applies: if the split itself is the open decision, it goes back to the caller.
-
-**Three shapes, in order of how safe they are:**
-
-- **Read fan-out — always available.** Independent read-only work: searching several areas, comparing approaches, auditing multiple files, reading another repo. Run up to `parallel.max_agents` at once. This also preserves the main session's context on long tasks, which is half the reason to reach for it.
-- **Review fan-out — §4's round.** Same mechanics as here; §4 owns the rules for it. More than one reviewer only when the dimensions are genuinely separate (correctness vs. cross-stack contract, say), never the same brief twice for a second opinion.
-- **Build fan-out — the narrow one.** Two agents editing at once is allowed only when every condition below holds. Any one missing → serialize, and say in §8 that you did.
-  - **Disjoint file sets, decided up front.** Each slice names the files it owns; one file has exactly one owner. Overlap isn't negotiated mid-flight — it's a sign the split is wrong.
-  - **Each slice is at least `parallel.min_slice` of work.** Below that, briefing costs more than doing it.
-  - **No slice depends on another's output.** A slice that needs the shape of what another agent is still writing is a sequence, not a fan-out.
-  - **Shared state is isolated — every item the risk pass named.** Concurrent edits in one working tree collide over the index, the build cache, and the dev server. Give each builder its own git worktree where the harness offers one (Claude Code: `isolation: "worktree"` on the `Agent` call, or an explicit worktree tool). Never let two of them run the same dev server, migrate the same database, commit or push on the same branch, or edit the same lockfile. Anything that genuinely cannot be isolated — one shared dev cluster, one external account with a rate limit — is not a thing to coordinate around: it stays with the main session, done once, before or after the fan-out.
-  - **Nobody commits, pushes, or deploys from inside a slice.** Builders leave their work in their own tree and report; landing it is the main session's job, in one place, in an order it chose.
+**Before any split beyond one read-only agent, read `references/split.md` beside this file** — the five-question risk pass, the three fan-out shapes and the build fan-out conditions, integration, and the single `HANDOFF.md` — and write its risk pass into the plan (§1) before the first spawn. Can't read it → don't split: serialize, and say so in §8.
 
 **Brief every agent the same way, whatever the shape.** It knows nothing you haven't written down: the one-sentence goal from §1, its slice and the files it owns, the repo constraints from §1 that bind it, the in-flight tasks it must not redo, what "done" looks like, and what to report back. Tell it explicitly what is *not* its slice — the common failure is an agent helpfully fixing something two slices over, or redoing a task another session already owns.
 
@@ -169,38 +150,11 @@ Any question you can't answer concretely is a **no**: serialize, and say why in 
 
 **An unconditional ban still outranks this file.** "Unless the user asked" does not — this section is that ask, so spawn and name the shape in §8. A ban with no such exception collapses every shape to sequential in-session work: do it, say so in §8, and offer the delegated round rather than claiming it ran.
 
-**`HANDOFF.md` stays single (§6) when the work fans out.** One note, with a line per slice: who owns it, which files, which worktree, and where it stopped. Notes per agent drift, and the one you resume from is never the current one.
-
 ## 6. Long-run continuity
 
 Only files on disk and git state survive a new session. Nothing else carries over.
 
-**Maintain `HANDOFF.md` at the repo root** for any task spanning more than one sitting. Skip this section entirely for a task that finishes in the current sitting — don't create or touch the file for single-sitting work just because this skill runs on every task. Update it the moment each step finishes — not at the end — so an interrupted run still leaves a current note:
-
-```markdown
-# HANDOFF
-updated: <timestamp>
-
-## Goal
-<one line>
-
-## Steps
-- [x] 1. ...
-- [ ] 2. ...   <- current
-
-## State
-branch: <branch>   last commit: <sha>
-uncommitted: <files>
-
-## Decisions
-- chose X over Y because ...
-
-## Next action
-<the exact command or edit to do next>
-
-## Blockers
-- <if any>
-```
+**Maintain `HANDOFF.md` at the repo root** for any task spanning more than one sitting. Skip this section entirely for a task that finishes in the current sitting — don't create or touch the file for single-sitting work just because this skill runs on every task. Update it the moment each step finishes — not at the end — so an interrupted run still leaves a current note. Its template is `references/handoff.md` beside this file; without it, the sections are Goal, Steps (current one marked), State (branch, last commit, uncommitted files), Decisions, Next action, Blockers.
 
 **Write the note early, not when you need it.** Create `HANDOFF.md` as soon as any of these is true, whichever comes first — an interruption is not the moment to start writing one:
 
@@ -268,26 +222,7 @@ If this change affects documented behavior (a route, an API contract, a decision
 - One topic per doc. When a doc has bloated or its scope has grown too wide to read in one pass, that's the one exception to the ask-first rule above — split it automatically: turn it into a folder, one file per topic, no need to ask first since this only reorganizes existing content rather than changing it. Then update whatever router/index points to it so the split doesn't orphan a topic.
 - This work depends on or connects to another project/repo/service (a shared package, an API another repo owns, a cross-repo contract) → say so, and ask whether it's worth recording as a reference doc for future work that spans both. Same go-ahead rule as above — note the connection, don't write the doc unasked.
 - Scratch or agent-only artifacts that aren't meant for human discovery (self-review notes, in-progress splits, working drafts) → keep them in a `.leancode/` folder at the repo root instead of scattering them into the docs tree. `HANDOFF.md` (§6) is the one exception — it stays at the repo root itself, precisely so it's the first thing found when resuming interrupted work.
-- New doc → use a minimal skeleton, skip sections that don't apply:
-
-```markdown
-# <Topic>
-<one line: what this doc governs>
-
-## Rule
-<the decision/convention, stated plainly>
-
-## Why
-<the constraint or reasoning that shaped it>
-
-## Related
-- <links to the code, other docs, or tickets this connects to>
-
-## Open
-- <unresolved edges, if any — omit this section entirely if none>
-```
-
-- This skeleton is deliberately project-agnostic so it holds up when this skill moves to another agent or repo — adapt section names to match whatever doc convention the project already has (check its router first, per §1) rather than forcing this shape on top of an existing one.
+- New doc → use the minimal skeleton in `references/doc-skeleton.md` beside this file (Topic line, Rule, Why, Related, Open — skip what doesn't apply), adapted to whatever doc convention the project already has.
 
 ## Never
 
@@ -302,20 +237,4 @@ If this change affects documented behavior (a route, an API contract, a decision
 - Claim high confidence without evidence to back it.
 - Rewrite for speed without a measurement named in the §8 report.
 - Invent a new folder, layer, or pattern on a refactor.
-- Edit this file without bumping `version` and adding a Changelog line.
-
-## Changelog
-
-- 2.9.0 (2026-09-24) — §3 baseline runs in the background during planning and finishes before the first edit; §4 review runs in the background while §8 is drafted and §7 walked up to §3; Optimize waits for findings
-- 2.8.0 (2026-09-24) — §1 task list lives in the harness's todo tool when present, kept current per step, gates each edit; §7 friction line records tier and wall time
-- 2.7.1 (2026-09-24) — §7 audit line for §5 matches 2.7.0's conditional wording
-
-- 2.7.0 (2026-09-24) — harness-neutral wording: §2 comments follow the file's density; §5 standing ask applies only where a harness bans spawning; §6 note is a checkpoint, needed with or without compaction
-
-- 2.6.0 (2026-09-24) — §3: in-session fallback when `security-review` or `run` is missing or can't spawn, aimed at this change's diff; §7 accepts it when named
-- 2.5.0 (2026-09-23) — Structure: name new or existing before the edit. A named new boundary is exempt from `abstraction.call_sites`; one correction does not reopen §4. A refactor keeps the structure already there
-- 2.4.0 (2026-09-23) — Optimize, one pass after §4: remove, collapse, bound a cost this change introduced. No speed rewrite without a measurement
-- 2.3.0 (2026-09-23) — §5 authorizes subagents for speed; a slice that repeats another in-flight task is a no. "Unless the user asked" counts as asked
-- 2.2.0 (2026-09-22) — §5 rewritten: mandatory pre-split risk pass, three fan-out shapes, non-interference and isolation rules, main-session-owns-merge
-- 2.1.0 (2026-09-22) — require a version bump + changelog line on every SKILL.md edit
-- 2.0.0 (2026-09-21) — first numbered snapshot of the evolved walk (tunables, §0–§9, FRICTION.md)
+- Edit this file without bumping `version` and adding a `CHANGELOG.md` line.

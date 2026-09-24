@@ -5,9 +5,10 @@ a walk with nine steps plus a structure check and one tighten pass on the finish
 workflows leave out) it **audits whether the walk actually happened** before it
 reports anything back.
 
-Written for [Claude Code](https://claude.com/claude-code) skills, but it is one
-Markdown file with YAML frontmatter, so any agent that loads skills by description
-can read it.
+Written for [Claude Code](https://claude.com/claude-code) skills, but it is plain
+Markdown: `SKILL.md` with YAML frontmatter, plus `references/` it reads only when a
+step needs them, so any agent that loads skills by description can read it. Each
+pointer into `references/` carries a short fallback in case the file can't be read.
 
 ## What it does
 
